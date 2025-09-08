@@ -1,58 +1,70 @@
 pipeline {
-    agent any
+  agent any
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+  }
+  environment {
+    PY_IMAGE     = 'python:3.10'
+    DOCKER_IMAGE = "paycare-etl:${env.BUILD_NUMBER}"
+    INPUT_FILE   = "${env.WORKSPACE}/data/input_data.csv"
+    OUTPUT_FILE  = "${env.WORKSPACE}/data/output_data.csv"
+  }
 
-    environment {
-        DOCKER_IMAGE = 'paycare-etl'
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
     }
 
-    stages {
-        stage('Clone Repository') {
-            steps {
-                git 'https://github.com/your-username/paycare-etl.git'
-            }
-        }
-
-        stage('Tests (Py + pytest in Docker)') {
-        steps {
-            sh '''
-            docker run --rm -v "$WORKSPACE":/app -w /app python:3.10 bash -lc "
-                pip install -r requirements.txt &&
-                pytest --junitxml=unit-tests.xml
-            "
-            '''
-        }
-        post {
-            always { junit 'unit-tests.xml' }
-        }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t ${DOCKER_IMAGE} .'
-            }
-        }
-
-        stage('Run Docker Container') {
-            steps {
-                script {
-                    // Create input data file dynamically
-                    sh 'echo "employee_id,employee_name,salary\n101,Alice,5000\n102,Bob,7000" > input_data.csv'
-
-                    // Run the Docker container with mounted input/output files
-                    sh 'docker run --rm -v $(pwd)/input_data.csv:/app/input_data.csv -v $(pwd)/output_data.csv:/app/output_data.csv ${DOCKER_IMAGE}'
-                }
-            }
-        }
+    stage('Unit Tests') {
+      steps {
+        sh '''
+          docker run --rm -v "$WORKSPACE":/app -w /app ${PY_IMAGE} bash -lc '
+            pip install -r requirements.txt &&
+            pytest tests --junitxml=unit-tests.xml
+          '
+        '''
+      }
+      post { always { junit 'unit-tests.xml' } }
     }
 
-    post {
-        success {
-            echo 'ETL Pipeline completed successfully!'
-            // Optionally send notification (Slack/Email)
-        }
-        failure {
-            echo 'ETL Pipeline failed.'
-            // Optionally send notification (Slack/Email)
-        }
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t "$DOCKER_IMAGE" .'
+      }
     }
+
+    stage('Prepare IO files') {
+      steps {
+        sh '''
+          cat > "$INPUT_FILE" <<EOF
+employee_id,employee_name,salary
+101,Alice,5000
+102,Bob,7000
+EOF
+          rm -f "$OUTPUT_FILE" || true
+        '''
+      }
+    }
+
+    stage('Run Container') {
+      steps {
+        sh '''
+          docker run --rm \
+            -v "$WORKSPACE/data":/app/data \
+            "$DOCKER_IMAGE"
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      archiveArtifacts artifacts: 'data/output_data.csv', fingerprint: true
+      echo '✅ ETL Pipeline completed successfully.'
+    }
+    failure {
+      echo '❌ ETL Pipeline failed.'
+    }
+  }
 }
