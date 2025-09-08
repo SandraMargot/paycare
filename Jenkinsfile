@@ -12,21 +12,18 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh 'pip install -r requirements.txt'
-            }
+        stage('Tests (Py + pytest in Docker)') {
+        steps {
+            sh '''
+            docker run --rm -v "$WORKSPACE":/app -w /app python:3.10 bash -lc "
+                pip install -r requirements.txt &&
+                pytest --junitxml=unit-tests.xml
+            "
+            '''
         }
-
-        stage('Run Unit Tests') {
-            steps {
-                sh 'pytest --junitxml=unit-tests.xml'
-            }
-            post {
-                always {
-                    junit 'unit-tests.xml'  // Publish test results
-                }
-            }
+        post {
+            always { junit 'unit-tests.xml' }
+        }
         }
 
         stage('Build Docker Image') {
