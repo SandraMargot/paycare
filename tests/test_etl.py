@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from io import StringIO
-from etl_process import extract_data, transform_data, load_data
+from app.etl import extract_data, transform_data, load_data
 
 # Test for data extraction
 def test_extract_data():

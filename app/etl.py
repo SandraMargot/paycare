@@ -48,6 +48,6 @@ def etl_process(input_file, output_file):
             load_data(transformed_data, output_file)
 
 if __name__ == "__main__":
-    input_file = 'input_data.csv'
-    output_file = 'output_data.csv'
+    input_file = 'data/input_data.csv'
+    output_file = 'data/output_data.csv'
     etl_process(input_file, output_file)

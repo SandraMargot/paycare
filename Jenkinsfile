@@ -21,7 +21,7 @@ pipeline {
         sh '''
           docker run --rm -v "$WORKSPACE":/app -w /app python:3.10 bash -lc '
             pip install --no-cache-dir -r requirements.txt pytest &&
-            python -m pytest tests --junitxml=unit-tests.xml -q
+            PYTHONPATH=/app python -m pytest tests --junitxml=unit-tests.xml -q
           '
         '''
       }
