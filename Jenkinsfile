@@ -19,9 +19,9 @@ pipeline {
     stage('Unit Tests') {
       steps {
         sh '''
-          docker run --rm -v "$WORKSPACE":/app -w /app ${PY_IMAGE} bash -lc '
-            pip install -r requirements.txt &&
-            pytest tests --junitxml=unit-tests.xml
+          docker run --rm -v "$WORKSPACE":/app -w /app python:3.10 bash -lc '
+            pip install --no-cache-dir -r requirements.txt pytest &&
+            python -m pytest tests --junitxml=unit-tests.xml -q
           '
         '''
       }
